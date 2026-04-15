@@ -1,32 +1,45 @@
+# =================================================================
+# AI Paper Replicator - Professional Git Configuration
+# =================================================================
+
 # --- Python Environment ---
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
 venv/
+env/
 ENV/
 build/
 dist/
+*.egg-info/
 
 # --- Environment Variables (CRITICAL) ---
-# Never upload your API keys!
+# Strictly prevent leaking any API keys or secrets
 .env
+.env.*
+!.env.example
 
-# --- Project Specific Data ---
-# Ignore all input images (avoid bloating the repo)
-inputs/*
-# Allow the inputs directory itself to be tracked if it contains a .gitkeep
+# --- Project Specific Data (Inputs & Outputs) ---
+# Ignore all content inside these folders but keep the folders themselves
+inputs/**/*
+outputs/**/*
+
+# Keep the folder structure on GitHub via .gitkeep
 !.gitkeep
+!inputs/.gitkeep
+!outputs/.gitkeep
 
-# Ignore all generated analysis and code
-outputs/*
-!.gitkeep
-
-# --- IDEs & OS ---
+# --- IDEs & OS Support ---
 .vscode/
 .idea/
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# --- Logs ---
+# --- Data & Logs ---
 *.log
+data/
+temp/
