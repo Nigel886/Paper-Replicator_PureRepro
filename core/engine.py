@@ -1,6 +1,8 @@
 import google.generativeai as genai
 import os
 import PIL.Image
+import time
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from .processors import DualStageProcessor
 
 class PaperReplicator:
@@ -12,8 +14,18 @@ class PaperReplicator:
             print("[Critical] API Key is missing! Check your .env file.")
         
         genai.configure(api_key=api_key)
-        # Using gemini-1.5-flash: Stable, multimodal, and publicly available.
+        # Using gemini-flash-latest: Stable, multimodal, and publicly available.
         self.model = genai.GenerativeModel('gemini-flash-latest')
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=60),
+        retry=retry_if_exception_type(Exception), # Broad for now, can be narrowed
+        before_sleep=lambda retry_state: print(f"[Engine] Rate limited. Retrying in {retry_state.next_action.sleep} seconds...")
+    )
+    def _generate_with_retry(self, contents):
+        """Helper to call Gemini API with exponential backoff."""
+        return self.model.generate_content(contents)
 
     def infer(self, image_path, prompt):
         """
@@ -29,15 +41,15 @@ class PaperReplicator:
             if img.mode != 'RGB':
                 img = img.convert('RGB')
             
-            # Direct multimodal call
-            response = self.model.generate_content([prompt, img])
+            # Use the retry helper
+            response = self._generate_with_retry([prompt, img])
             
             if not response or not response.text:
                 return ""
             return response.text
             
         except Exception as e:
-            print(f"[Engine] Inference Error: {e}")
+            print(f"[Engine] Inference Error after retries: {e}")
             raise e
 
     def dual_stage_analyze(self, image_path):
@@ -91,10 +103,10 @@ class PaperReplicator:
         if valid_images == 0:
             return "## 1. Overview\nError: No valid images found.\n\n## 2. Implementation Code\n# No images were processed.\n\n## 3. Key Engineering Insights\n* Please ensure you are uploading valid image files."
 
-        # 2. Call Gemini API with safety handling
+        # 2. Call Gemini API with safety handling and retry logic
         try:
             print(f"[Engine] Sending {valid_images} images to Gemini for full analysis...")
-            response = self.model.generate_content(contents)
+            response = self._generate_with_retry(contents)
             
             if not response.text:
                 raise ValueError("Empty response from AI.")

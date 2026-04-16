@@ -40,9 +40,9 @@ class DualStageProcessor(BaseProcessor):
         print(f"[DualStage] Action B: Converting LaTeX to PyTorch code...")
         action_b_prompt = self.action_b_template.format(latex=latex_output)
         
-        # Since Action B is text-to-text, we use the model's generate_content directly
+        # Use the engine's retry helper for text-to-text Action B
         try:
-            response = self.engine.model.generate_content(action_b_prompt)
+            response = self.engine._generate_with_retry(action_b_prompt)
             code_output = response.text
         except Exception as e:
             print(f"[DualStage] Action B Error: {e}")
