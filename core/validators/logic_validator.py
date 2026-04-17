@@ -27,6 +27,9 @@ class LogicValidator:
         Returns (is_consistent, error_message)
         """
         try:
+            if not logic_spec_json:
+                return True, None
+
             if isinstance(logic_spec_json, str):
                 spec = json.loads(logic_spec_json)
             else:
@@ -75,6 +78,20 @@ class LogicValidator:
         except Exception as e:
             return False, f"逻辑验证出错: {str(e)}"
 
+    @staticmethod
+    def extract_logic_spec(text):
+        """从文本中提取 Logic Spec JSON"""
+        # 寻找包含 required_operators 的 JSON 块
+        matches = re.finditer(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+        for match in matches:
+            try:
+                data = json.loads(match.group(1))
+                if "required_operators" in data:
+                    return data
+            except:
+                continue
+        return None
+
 def possible_functions_to_check(matches):
     """提取简单的函数名进行匹配"""
     results = []
@@ -84,16 +101,3 @@ def possible_functions_to_check(matches):
         else:
             results.append(m)
     return list(set(results))
-
-    @staticmethod
-    def extract_logic_spec(text):
-        """从文本中提取 Logic Spec JSON"""
-        match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                data = json.loads(match.group(1))
-                if "required_operators" in data:
-                    return data
-            except:
-                pass
-        return None

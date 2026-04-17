@@ -35,7 +35,60 @@ const overviewOutput = document.getElementById('overview-output');
 const codeOutput = document.getElementById('code-output');
 const insightsOutput = document.getElementById('insights-output');
 
+const progressContainer = document.getElementById('progress-container');
+const progressStatus = document.getElementById('progress-status');
+const progressPercent = document.getElementById('progress-percent');
+const progressBar = document.getElementById('progress-bar');
+const progressLog = document.getElementById('progress-log');
+
 let selectedFiles = [];
+
+// --- Progress Tracking Helper ---
+function startProgressTracking(taskId, onComplete) {
+    progressContainer.classList.remove('hidden');
+    progressLog.innerHTML = '';
+    
+    const eventSource = new EventSource(`/progress/${taskId}`);
+    
+    eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.message === "COMPLETED") {
+            eventSource.close();
+            progressContainer.classList.add('hidden');
+            if (onComplete) onComplete();
+            return;
+        }
+
+        if (data.message.startsWith("FAILED")) {
+            eventSource.close();
+            progressContainer.classList.add('hidden');
+            alert(data.message);
+            if (onComplete) onComplete(new Error(data.message));
+            return;
+        }
+
+        // Update UI
+        progressStatus.innerText = data.message;
+        const percent = Math.round((data.step / data.total_steps) * 100);
+        progressPercent.innerText = `${percent}%`;
+        progressBar.style.width = `${percent}%`;
+        
+        // Add log entry
+        const logEntry = document.createElement('div');
+        logEntry.className = "mb-1 border-l-2 border-blue-200 pl-2";
+        logEntry.innerText = `[${new Date().toLocaleTimeString()}] ${data.message}`;
+        progressLog.appendChild(logEntry);
+        progressLog.scrollTop = progressLog.scrollHeight;
+    };
+
+    eventSource.onerror = () => {
+        eventSource.close();
+        // Don't hide container immediately on error, as it might be a temporary reconnect
+    };
+
+    return eventSource;
+}
 
 // --- UI Interaction Logic ---
 dropZone.onclick = () => fileInput.click();
@@ -147,84 +200,97 @@ replicateBtn.onclick = async () => {
 
     // UI State: Loading Initialization
     replicateBtn.disabled = true;
-    btnText.innerHTML = '<span class="loader"></span>Analyzing Paper Content...';
+    btnText.innerHTML = '<span class="loader"></span>Running Engine...';
     resultArea.classList.add('hidden');
+    
+    // Generate a unique task ID for this session
+    const taskId = 'task_' + Math.random().toString(36).substr(2, 9);
+
+    // 定义任务完成后的回调逻辑
+    const onTaskFinished = async (error) => {
+        if (error) {
+            replicateBtn.disabled = false;
+            btnText.innerText = 'Start Replication';
+            return;
+        }
+
+        try {
+            // 任务在后台完成后，主动去请求最终结果
+            const response = await fetch(`/result/${taskId}`);
+            const data = await response.json();
+
+            if (data.status === "success") {
+                const result = parsePureReproResponse(data.analysis);
+                renderContentWithMath(overviewOutput, result.overview);
+                
+                const insightLines = result.insights.split('\n').filter(l => l.trim());
+                insightsOutput.innerHTML = '';
+                insightLines.forEach(line => {
+                    const container = document.createElement('div');
+                    container.className = "flex items-start mb-2";
+                    container.innerHTML = `<span class="mr-2 text-amber-500">•</span><span class="insight-text"></span>`;
+                    const textSpan = container.querySelector('.insight-text');
+                    renderContentWithMath(textSpan, line.replace(/^[*-]\s*/, ''), true);
+                    insightsOutput.appendChild(container);
+                });
+
+                codeOutput.innerText = cleanCodeBlocks(result.code);
+                resultArea.classList.remove('hidden');
+
+                setTimeout(() => {
+                    if (typeof renderMathInElement === 'function') {
+                        renderMathInElement(resultArea, {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false},
+                                {left: '\\(', right: '\\)', display: false},
+                                {left: '\\[', right: '\\]', display: true}
+                            ],
+                            throwOnError: false, trust: true, strict: false
+                        });
+                    }
+                }, 100);
+
+                resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                alert("Analysis failed to retrieve result.");
+            }
+        } catch (err) {
+            console.error("Result Fetch Error:", err);
+            alert("Could not retrieve final results.");
+        } finally {
+            replicateBtn.disabled = false;
+            btnText.innerText = 'Start Replication';
+        }
+    };
+
+    startProgressTracking(taskId, onTaskFinished);
 
     try {
-        let data;
         if (currentMode === 'upload') {
             const formData = new FormData();
             selectedFiles.forEach(file => formData.append('files', file));
             formData.append('output_name', 'model.py');
             formData.append('framework', frameworkSelect.value);
+            formData.append('task_id', taskId);
 
-            const response = await fetch('/replicate', {
-                method: 'POST',
-                body: formData
-            });
-            data = await response.json();
+            // 文件上传模式也改为后台处理（此处后端逻辑暂未完全统一，但前端先适配 taskId）
+            await fetch('/replicate', { method: 'POST', body: formData });
         } else {
-            const response = await fetch('/replicate_arxiv', {
+            // ArXiv 模式：触发即走，不等待响应中的 analysis 字段
+            await fetch('/replicate_arxiv', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     arxiv_id: arxivInput.value.trim(),
-                    framework: frameworkSelect.value
+                    framework: frameworkSelect.value,
+                    task_id: taskId
                 })
             });
-            data = await response.json();
-        }
-
-        if (data.status === "success") {
-            // ArXiv mode might return multiple algorithms, but we'll use the same parser
-            const result = parsePureReproResponse(data.analysis);
-
-            // 1. Render Overview and Insights using the Protection Helper
-            renderContentWithMath(overviewOutput, result.overview);
-            
-            const insightLines = result.insights.split('\n').filter(l => l.trim());
-            insightsOutput.innerHTML = ''; // Clear old content
-            insightLines.forEach(line => {
-                const container = document.createElement('div');
-                container.className = "flex items-start mb-2";
-                container.innerHTML = `<span class="mr-2 text-amber-500">•</span><span class="insight-text"></span>`;
-                const textSpan = container.querySelector('.insight-text');
-                // Protect LaTeX within each bullet point
-                renderContentWithMath(textSpan, line.replace(/^[*-]\s*/, ''), true);
-                insightsOutput.appendChild(container);
-            });
-
-            // 2. Render Code normally
-            codeOutput.innerText = cleanCodeBlocks(result.code);
-
-            // UI State: Show Result Area
-            resultArea.classList.remove('hidden');
-
-            // 3. Final KaTeX Polish: Trigger the actual rendering of math symbols
-            setTimeout(() => {
-                if (typeof renderMathInElement === 'function') {
-                    renderMathInElement(resultArea, {
-                        delimiters: [
-                            {left: '$$', right: '$$', display: true},
-                            {left: '$', right: '$', display: false},
-                            {left: '\\(', right: '\\)', display: false},
-                            {left: '\\[', right: '\\]', display: true}
-                        ],
-                        throwOnError: false,
-                        trust: true,
-                        strict: false
-                    });
-                }
-            }, 100);
-
-            resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-            alert("Analysis failed: " + (data.error || "Unknown error"));
         }
     } catch (error) {
-        console.error("Replication Error:", error);
+        console.error("Submission Error:", error);
         alert("Could not connect to PureRepro Backend!");
-    } finally {
         replicateBtn.disabled = false;
         btnText.innerText = 'Start Replication';
     }

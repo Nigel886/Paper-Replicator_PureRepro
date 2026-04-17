@@ -2,10 +2,16 @@ import google.generativeai as genai
 import os
 import PIL.Image
 import time
+import threading
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from .processors import DualStageProcessor
 
 class PaperReplicator:
+    # 类级别的锁和时间戳，确保跨实例/线程的全局频率限制 (15 RPM)
+    _global_lock = threading.Lock()
+    _last_call_time = 0
+    _min_interval = 4.5 # 稍微留一点余地 (15 RPM = 4.0s)
+
     def __init__(self, api_key):
         """
         Initialize the Gemini engine with the stable production model.
@@ -14,18 +20,54 @@ class PaperReplicator:
             print("[Critical] API Key is missing! Check your .env file.")
         
         genai.configure(api_key=api_key)
-        # Using gemini-flash-latest: Stable, multimodal, and publicly available.
+        # 换回原有的别名，确保 API 版本兼容性
         self.model = genai.GenerativeModel('gemini-flash-latest')
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=60),
-        retry=retry_if_exception_type(Exception), # Broad for now, can be narrowed
-        before_sleep=lambda retry_state: print(f"[Engine] Rate limited. Retrying in {retry_state.next_action.sleep} seconds...")
+        stop=stop_after_attempt(12), 
+        wait=wait_exponential(multiplier=2, min=10, max=60), 
+        retry=retry_if_exception_type(Exception), 
+        before_sleep=lambda retry_state: print(f"[Engine] API Issue: {retry_state.outcome.exception()}. Retrying (Attempt {retry_state.attempt_number}) in {retry_state.next_action.sleep} seconds...")
     )
     def _generate_with_retry(self, contents):
-        """Helper to call Gemini API with exponential backoff."""
-        return self.model.generate_content(contents)
+        """Helper to call Gemini API with exponential backoff and proactive throttling."""
+        from utils.progress_manager import progress_tracker
+        
+        # 增加对配额耗尽错误的识别，避免无意义的重试
+        last_exception = None
+        
+        if progress_tracker.is_shutdown():
+            raise InterruptedError("Task cancelled by user (Shutdown signal).")
+
+        # 1. 第一步：获取锁并计算休眠时间
+        with self._global_lock:
+            now = time.time()
+            elapsed = now - PaperReplicator._last_call_time
+            if elapsed < PaperReplicator._min_interval:
+                sleep_time = PaperReplicator._min_interval - elapsed
+                
+                # 分段休眠，以便能够快速响应停止信号
+                for _ in range(int(sleep_time * 2)):
+                    if progress_tracker.is_shutdown():
+                        raise InterruptedError("Task cancelled by user.")
+                    time.sleep(0.5)
+            
+            # 更新最后调用时间
+            PaperReplicator._last_call_time = time.time()
+        
+        # 2. 第二步：在锁外执行 API 调用
+        if progress_tracker.is_shutdown():
+            raise InterruptedError("Task cancelled by user.")
+            
+        try:
+            return self.model.generate_content(contents)
+        except Exception as e:
+            err_str = str(e)
+            if "quota" in err_str.lower() or "429" in err_str:
+                if "daily" in err_str.lower() or "limit: 20" in err_str:
+                    print(f"[Engine] CRITICAL: Daily Quota Exhausted. Model: {self.model.model_name}")
+                    # 如果是每日配额耗尽，直接抛出不可重试的异常（或者在这里处理切换 Key 的逻辑）
+            raise e
 
     def infer(self, image_path, prompt):
         """
