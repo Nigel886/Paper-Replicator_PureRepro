@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 # Initialize App
-app = FastAPI(title="Lumina Paper Replicator V3-Final")
+app = FastAPI(title="PureRepro Paper Replicator V3-Final")
 
 # Mount static files to serve frontend
 # Ensure the 'static' directory exists in your root

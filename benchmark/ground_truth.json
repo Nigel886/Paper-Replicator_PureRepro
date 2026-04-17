@@ -1,0 +1,22 @@
+{
+    "sample_01.png": "L^{CLIP}(\\theta) = \\hat{\\mathbb{E}}_t [\\min(r_t(\\theta)\\hat{A}_t, \\text{clip}(r_t(\\theta), 1 - \\epsilon, 1 + \\epsilon)\\hat{A}_t)]",
+    "sample_02.png": "Q^*(s, a) = \\mathbb{E}_{s'}[r + \\gamma \\max_{a'} Q^*(s', a') \\mid s, a]",
+    "sample_03.png": "J(\\pi) = \\sum_{t=0}^{T} \\mathbb{E}_{(s_t, a_t) \\sim \\rho_\\pi} [r(s_t, a_t) + \\alpha H(\\pi(\\cdot | s_t))]",
+    "sample_04.png": "H^{(l+1)} = \\sigma \\left( \\tilde{D}^{-\\frac{1}{2}} \\tilde{A} \\tilde{D}^{-\\frac{1}{2}} H^{(l)} W^{(l)} \\right)",
+    "sample_05.png": "e_{ij} = \\text{LeakyReLU}\\left(\\mathbf{a}^{T}[\\mathbf{W} \\mathbf{h}_{i} \\| \\mathbf{W} \\mathbf{h}_{j}]\\right)",
+    "sample_06.png": "\\mathrm{Attention}(Q, K, V) = \\mathrm{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V",
+    "sample_07.png": "\\mathcal{L}(\\theta, \\phi; x) = \\mathbb{E}_{q_{\\phi}(z|x)}[\\log p_{\\theta}(x \\mid z)] - D_{KL}(q_{\\phi}(z \\mid x) \\| p_{\\theta}(z))",
+    "sample_08.png": "p_\\theta(x_{t-1} | x_t) = \\mathcal{N}(x_{t-1}; \\mu_\\theta(x_t, t), \\Sigma_\\theta(x_t, t))",
+    "sample_09.png": "A = U \\Sigma V^T = \\sum_{i=1}^r \\sigma_i u_i v_i^T",
+    "sample_10.png": "f(\\mathbf{x}) \\approx f(\\mathbf{a}) + \\nabla f(\\mathbf{a})^T (\\mathbf{x} - \\mathbf{a}) + \\frac{1}{2} (\\mathbf{x} - \\mathbf{a})^T \\mathbf{H}(\\mathbf{a}) (\\mathbf{x} - \\mathbf{a})",
+    "sample_11.png": "F(s, a, s') = \\gamma \\Phi(s') - \\Phi(s)",
+    "sample_12.png": "\\mathcal{L} = -\\log \\frac{\\exp(\\text{sim}(z_i, z_j) / \\tau)}{\\sum_{k=1}^{2N} 1_{[k \\neq i]} \\exp(\\text{sim}(z_i, z_k) / \\tau)}",
+    "sample_13.png": "\\theta_{t+1} = \\theta_t - \\frac{\\eta}{\\sqrt{\\hat{v}_t} + \\epsilon} \\hat{m}_t",
+    "sample_14.png": "J = \\int_0^\\infty (x^T Qx + u^T Ru) dt",
+    "sample_15.png": "m_v^{(k+1)} = \\sum_{u \\in \\mathcal{N}(v)} \\phi_k(h_v^{(k)}, h_u^{(k)}, e_{uv}^{(k)})",
+    "sample_16.png": "p(\\theta | D) = \\frac{p(D|\\theta)p(\\theta)}{\\int p(D|\\theta')p(\\theta')d\\theta'}",
+    "sample_17.png": "X_k = \\sum_{n=0}^{N-1} x_n e^{-i2\\pi kn/N}",
+    "sample_18.png": "\\nabla_{\\theta} J(\\theta) = \\mathbb{E}_{\\pi_{\\theta}} [\\nabla_{\\theta} \\log \\pi_{\\theta}(a|s) Q^{\\pi}(s, a)]",
+    "sample_19.png": "\\text{LayerNorm}(x) = \\frac{x - \\mu}{\\sqrt{\\sigma^2 + \\epsilon}} \\gamma + \\beta",
+    "sample_20.png": "f(x) = \\frac{1}{\\sigma \\sqrt{2\\pi}} e^{-\\frac{1}{2} (\\frac{x-\\mu}{\\sigma})^2}"
+}

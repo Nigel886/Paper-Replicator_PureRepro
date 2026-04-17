@@ -78,7 +78,7 @@ function handleFiles(files) {
 /**
  * Splits the raw AI Markdown response into structured segments
  */
-function parseLuminaResponse(text) {
+function parsePureReproResponse(text) {
     const overviewMatch = text.match(/##\s*1\.\s*Overview([\s\S]*?)(?=##\s*2\.)/i);
     const codeMatch = text.match(/##\s*2\.\s*Implementation Code([\s\S]*?)(?=##\s*3\.)/i);
     const insightsMatch = text.match(/##\s*3\.\s*Key Engineering Insights([\s\S]*)/i);
@@ -177,7 +177,7 @@ replicateBtn.onclick = async () => {
 
         if (data.status === "success") {
             // ArXiv mode might return multiple algorithms, but we'll use the same parser
-            const result = parseLuminaResponse(data.analysis);
+            const result = parsePureReproResponse(data.analysis);
 
             // 1. Render Overview and Insights using the Protection Helper
             renderContentWithMath(overviewOutput, result.overview);
@@ -221,9 +221,9 @@ replicateBtn.onclick = async () => {
         } else {
             alert("Analysis failed: " + (data.error || "Unknown error"));
         }
-    } catch (err) {
-        console.error("API Error:", err);
-        alert("Could not connect to Lumina Backend!");
+    } catch (error) {
+        console.error("Replication Error:", error);
+        alert("Could not connect to PureRepro Backend!");
     } finally {
         replicateBtn.disabled = false;
         btnText.innerText = 'Start Replication';
