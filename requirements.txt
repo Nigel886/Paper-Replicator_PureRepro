@@ -9,3 +9,4 @@ fastmcp
 arxiv
 pymupdf
 numpy
+Pillow
