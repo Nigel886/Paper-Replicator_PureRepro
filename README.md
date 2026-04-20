@@ -57,6 +57,15 @@ pip install -r requirements.txt
 python api.py
 ```
 
+### 3. Cloud Deployment (Render / Cloud Run)
+PureRepro is production-ready and can be deployed to the cloud in minutes:
+- **Render**: Connect your GitHub repo, select **Docker** as the environment, and add your `GEMINI_API_KEY` in Environment Variables. The included `render.yaml` simplifies this process.
+- **Google Cloud Run**: 
+  ```bash
+  gcloud builds submit --tag gcr.io/your-project/purerepro
+  gcloud run deploy --image gcr.io/your-project/purerepro --set-env-vars GEMINI_API_KEY=your_key
+  ```
+
 ---
 
 ## 📂 Project Structure
@@ -127,6 +136,15 @@ conda create -n PureRepro_env python=3.10 && conda activate PureRepro_env
 pip install -r requirements.txt
 python api.py
 ```
+
+### 3. 云端部署 (Render / Cloud Run)
+PureRepro 已具备生产就绪性，可快速部署至云端：
+- **Render**: 连接 GitHub 仓库，环境选择 **Docker**，并在环境变量中添加 `GEMINI_API_KEY`。项目已内置 `render.yaml` 简化配置。
+- **Google Cloud Run**: 
+  ```bash
+  gcloud builds submit --tag gcr.io/your-project/purerepro
+  gcloud run deploy --image gcr.io/your-project/purerepro --set-env-vars GEMINI_API_KEY=your_key
+  ```
 
 ---
 

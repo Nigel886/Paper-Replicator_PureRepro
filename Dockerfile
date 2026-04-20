@@ -7,7 +7,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -20,12 +20,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code into the container
 COPY . .
 
-# Expose the port the app runs on
+# Expose the port (Render/Cloud Run will ignore this but it's good practice)
 EXPOSE 8000
 
-# Define environment variables (should be overridden by docker-compose or env file)
-ENV GEMINI_API_KEY=""
+# Define environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run the application
-CMD ["uvicorn", "api.py:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application with dynamic port binding for cloud environments
+CMD uvicorn api.py:app --host 0.0.0.0 --port ${PORT:-8000}
